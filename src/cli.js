@@ -30,11 +30,11 @@ const KEYS = path.join(ROOT, 'keys.txt');
 const DEAD = path.join(ROOT, 'keys-dead.txt');
 const ACCOUNTS = path.join(ROOT, 'accounts.json');
 const OUT = path.join(ROOT, 'out');
-fs.mkdirSync(OUT, { recursive: true });
 
 const argv = process.argv.slice(2);
 const one = (n, d) => { const i = argv.indexOf(`--${n}`); return i >= 0 && argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : d; };
 const has = (n) => argv.includes(`--${n}`);
+const DRY = has('dry'); // resolve the plan, write nothing, send nothing
 const COUNT = parseInt(one('count', '5'), 10) || 5;
 const MODEL = one('model', P.model);
 const ENV_POOLS = (process.env[`${P.env}_PROXIES`] || '').split(',').map((s) => s.trim()).filter(Boolean);
@@ -49,8 +49,22 @@ if (has('help') || has('h')) {
   console.log('  --model ID       model used for the live verification');
   console.log('  --verify-only    re-check keys.txt');
   console.log('  --screen         test the exit pool against this panel');
+  console.log('  --dry            print the resolved plan and exit (nothing written)');
   process.exit(0);
 }
+
+// `--dry` first, `out/` only for a real run: `--help`/`--dry` must not create
+// anything in the checkout (dry-mutation audit, 2026-10-23).
+if (DRY) {
+  console.log(`${P.repoName} dry run — nothing written, nothing sent
+  command   node src/cli.js --count ${COUNT}
+  count     ${COUNT}
+  model     ${MODEL}
+  pool      ${POOL_FILES.length ? POOL_FILES.join(', ') : `none (write proxies.txt or set ${P.env}_PROXIES)`}
+  keys      ${KEYS}`);
+  process.exit(0);
+}
+fs.mkdirSync(OUT, { recursive: true });
 
 const accounts = (() => { try { return JSON.parse(fs.readFileSync(ACCOUNTS, 'utf8')); } catch (e) { return []; } })();
 const saveAccounts = () => fs.writeFileSync(ACCOUNTS, JSON.stringify(accounts, null, 1));
