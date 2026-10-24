@@ -11,7 +11,7 @@
  */
 const https = require('https');
 const { URL } = require('url');
-const { parseProxy, createAgent, label } = require('../../river-bulk-apikey/src/proxy');
+const { parseProxy, createAgent, label } = require('./proxy');
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36';
 const BASE = 'https://www.emailnator.com';

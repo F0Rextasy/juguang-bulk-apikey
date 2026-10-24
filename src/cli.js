@@ -154,10 +154,14 @@ async function mint() {
     const rec = { provider: P.name, base: P.base, index: accounts.length + 1, email: box.plain, mailbox: box, username, password, created: nowIso(), steps: {} };
     log(`#${rec.index} ${box.plain} user=${username}`);
     try {
+      // The emailnator box is shared and already holds other senders' history:
+      // only a mail that lands *after* this sendCode counts, or a stale code
+      // comes back as "Verification code is incorrect or has expired".
+      const baseline = new Set(((await gmail.list(box.plain, mailPool)).messages || []).map((m) => String(m.message_id || m.id || '')));
       const sent = await panel.sendCode(box.plain, { tries: 8 });
       rec.steps.sendCode = { status: sent.status, body: sent.json ? (sent.json.message || JSON.stringify(sent.json)) : String(sent.text || '').slice(0, 150) };
       if (sent.status >= 400 || (sent.json && sent.json.success === false)) { rec.status = 'send-refused'; accounts.push(rec); saveAccounts(); continue; }
-      const got = await gmail.waitCode(box.plain, mailPool, (t) => (SUBJECT_RE && !SUBJECT_RE.test(String(t)) ? null : (String(t).match(/([0-9]{4,8})/) || [])[1]), { timeoutMs: 240000, pollMs: 6000 });
+      const got = await gmail.waitCode(box.plain, mailPool, (t) => (SUBJECT_RE && !SUBJECT_RE.test(String(t)) ? null : (String(t).match(/([0-9]{4,8})/) || [])[1]), { timeoutMs: 240000, pollMs: 6000, baseline });
       if (!got) { rec.status = 'no-code'; accounts.push(rec); saveAccounts(); continue; }
       rec.steps.code = { code: got.code, subject: got.subject };
       log(`  code ${got.code}`);
